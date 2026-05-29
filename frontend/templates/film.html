@@ -1,0 +1,669 @@
+{% extends "base.html" %}
+{% block title %}Explore {{ film.title }} — CineTrace{% endblock %}
+
+{% block head %}
+<style>
+.film-hero {
+  position: relative;
+  min-height: 60vh;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 60px 60px;
+  overflow: hidden;
+}
+.film-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(.22) saturate(1.2);
+  background-image: url('/static/img/hero_placeholder.svg');
+  transition: background-image 0.5s ease;
+}
+.film-hero-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #08090df5 35%, #08090d88 65%, transparent),
+              linear-gradient(to top, #08090d 0%, transparent 60%);
+}
+.film-layout { position: relative; z-index: 1; display: flex; gap: 40px; align-items: flex-end; width: 100%; }
+.film-poster-col { flex-shrink: 0; }
+.film-poster-main { width: 200px; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); object-fit: cover; aspect-ratio: 2/3; display: block; background: var(--surface2); border: 1px solid var(--border); }
+.film-info-col { flex: 1; min-width: 0; }
+.film-title-main { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 5vw, 66px); line-height: .95; letter-spacing: 2px; margin-bottom: 12px; }
+.film-tagline { color: var(--muted); font-size: 16px; margin-bottom: 18px; line-height: 1.4; }
+.film-tagline strong { color: var(--text); }
+.film-meta-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-bottom: 20px; }
+.meta-chip { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); font-weight: 500; }
+.meta-chip strong { color: var(--text); }
+.rating-big { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-gradient); color: #fff; font-weight: 800; font-size: 15px; padding: 6px 14px; border-radius: 4px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25); }
+.rating-big svg { width: 14px; height: 14px; color: white; fill: white; }
+.film-synopsis-main { font-size: 14.5px; line-height: 1.75; color: #cbd5e1; max-width: 560px; margin-bottom: 24px; }
+.film-genres-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.genre-pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); text-decoration: none; transition: all .2s; }
+.genre-pill:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+/* details grid */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 40px 60px; }
+.detail-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 24px; }
+.detail-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--accent-cyan); margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+/* Influence Grid Redesign */
+.influence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 20px;
+  margin-top: 15px;
+}
+.influence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.influence-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-cyan);
+}
+.influence-poster-wrap {
+  position: relative;
+  aspect-ratio: 2/3;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface2);
+}
+.influence-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.influence-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.influence-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+.influence-director {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Influence Votes Widget */
+.vote-widget { display: flex; align-items: center; justify-content: space-between; background: var(--surface2); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; margin-top: auto; }
+.vote-btn { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; transition: color 0.2s; outline: none; }
+.vote-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.vote-btn:hover { color: var(--accent-cyan); }
+.vote-score { font-weight: bold; color: var(--text); min-width: 14px; text-align: center; }
+
+/* Interactive Star Rating Widget */
+.interactive-rating-box {
+  background: rgba(22, 24, 36, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  backdrop-filter: blur(8px);
+}
+.rating-box-title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.star-rating-bar {
+  display: flex;
+  gap: 4px;
+}
+.star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  outline: none;
+  color: var(--muted);
+  transition: transform 0.15s, color 0.15s;
+}
+.star-btn:hover {
+  transform: scale(1.2);
+}
+.star-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.star-btn.highlighted {
+  color: var(--accent-cyan);
+}
+.rating-value-display {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+/* reviews */
+.review-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.review-item:last-child { border-bottom: none; }
+.review-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.review-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0; }
+.review-user { font-weight: 600; font-size: 13.5px; }
+.review-rating { margin-left: 8px; color: var(--accent-cyan); font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.review-rating svg { width: 12px; height: 12px; fill: var(--accent-cyan); }
+.review-body { font-size: 13.5px; line-height: 1.65; color: #cbd5e1; }
+
+/* crew */
+.crew-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.crew-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px; text-align: center; transition: border-color 0.2s; }
+.crew-card.lead-member { border-color: var(--primary); background: rgba(99, 102, 241, 0.04); }
+.crew-name { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+.crew-name.lead-name { color: var(--primary); }
+.crew-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+
+/* awards */
+.award-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.award-row:last-child { border-bottom: none; }
+.award-icon { width: 18px; height: 18px; color: var(--muted); }
+.award-name { font-weight: 600; font-size: 13.5px; }
+.award-cat { font-size: 12px; color: var(--muted); }
+.award-year { font-size: 12px; color: var(--muted); margin-left: auto; }
+.award-won { background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 3px; border: 1px solid rgba(6, 182, 212, 0.2); }
+.award-nom { background: rgba(255, 255, 255, 0.05); color: var(--muted); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 3px; }
+
+/* btn input controls */
+.btn-gold { background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(99,102,241,0.2); }
+.btn-gold:hover { background: var(--primary-hover); }
+.form-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 15px; border-radius: 6px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s; height: 42px; }
+.form-select:focus { border-color: var(--primary); }
+
+@media(max-width:900px){
+  .detail-grid { grid-template-columns: 1fr; }
+  .film-hero { padding: 40px 24px; min-height: auto; }
+  .film-layout { flex-direction: column; gap: 20px; align-items: flex-start; }
+  .film-poster-main { width: 140px; }
+  .detail-grid { padding: 24px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Set User's Existing Rating (if any) -->
+{% set user_rating_val = 0 %}
+{% if current_user %}
+  {% for r in reviews %}
+    {% if r.user_id|string == current_user.user_id|string %}
+      {% set user_rating_val = r.rating|int %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+<!-- FILM HERO -->
+<section class="film-hero">
+  <div class="film-hero-bg"></div>
+  <div class="film-hero-fade"></div>
+  <div class="film-layout">
+    <div class="film-poster-col">
+      <img class="film-poster-main"
+           id="mainPoster"
+           src="/static/img/placeholder.svg"
+           data-title="{{ film.title }}"
+           data-year="{{ film.get('release_year','') }}"
+           onerror="this.src='/static/img/placeholder.svg'"
+           alt="{{ film.title }}"/>
+    </div>
+    <div class="film-info-col">
+      <h1 class="film-title-main">{{ film.title }}</h1>
+      <div class="film-tagline">
+        {% if film.get('director_name') %}
+          Directed by <strong><a href="/director/{{ film.director_id }}" style="color:var(--accent-cyan); text-decoration:none;">{{ film.director_name }}</a></strong>
+        {% endif %}
+        {% if film.get('cinematographer_name') %}
+          &nbsp;·&nbsp; Cinematography by <strong>{{ film.cinematographer_name }}</strong>
+        {% endif %}
+      </div>
+      
+      <div class="film-meta-row">
+        {% if film.get('avg_rating') %}
+        <div class="rating-big">
+          <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          {{ film.avg_rating }} / 10
+        </div>
+        {% endif %}
+        {% if film.get('release_year') %}
+        <div class="meta-chip"><strong>{{ film.release_year }}</strong></div>
+        {% endif %}
+        {% if film.get('runtime_min') %}
+        <div class="meta-chip"><strong>{{ film.runtime_min }}</strong> min</div>
+        {% endif %}
+        {% if film.get('country') %}
+        <div class="meta-chip">
+          <svg style="width:14px;height:14px;color:var(--muted)" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2a2.5 2.5 0 002.5-2.5V10a2 2 0 012-2h1.264M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <strong>{{ film.country }}</strong>
+        </div>
+        {% endif %}
+        {% if film.get('language') %}
+        <div class="meta-chip" style="text-transform:uppercase;font-size:11px">{{ film.language }}</div>
+        {% endif %}
+        {% if film.awards_won %}
+        <div class="meta-chip">
+          <svg style="width:14px;height:14px;color:var(--accent-cyan);fill:var(--accent-cyan)" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v3c0 2.24 1.55 4.15 3.61 4.68C7.62 16.36 10 18 12 18s4.38-1.64 5.39-3.32C19.45 14.15 21 12.24 21 10V7c0-1.1-.9-2-2-2zM5 10V7h2v3c0 .55-.45 1-1 1s-1-.45-1-1zm14 0c0 .55-.45 1-1 1s-1-.45-1-1V7h2v3zM12 20h-4v2h8v-2h-4z"/></svg>
+          <strong>{{ film.awards_won }}</strong> awards
+        </div>
+        {% endif %}
+      </div>
+      
+      <div class="film-genres-row">
+        {% for g in film.get('genres',[]) %}
+        <a href="/browse?genre={{ g }}" class="genre-pill">{{ g }}</a>
+        {% endfor %}
+      </div>
+      
+      {% if film_movements %}
+      <div class="film-genres-row">
+        {% for m in film_movements %}
+        <a href="/movements?id={{ m.movement_id }}" class="genre-pill" style="border-color:var(--accent-cyan); color:var(--accent-cyan); display:flex; align-items:center; gap:6px;">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
+          {{ m.name }}
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      
+      {% if film.get('synopsis') %}
+      <p class="film-synopsis-main">{{ film.synopsis }}</p>
+      {% endif %}
+      
+      <!-- Watchlist Selection Dropdown -->
+      {% if current_user %}
+      <div style="display:inline-flex; align-items:center; gap:12px; margin-top:10px;">
+        <select id="watchlistSelect" onchange="addToWatchlist('{{ film.film_id }}', this.value)" class="form-select">
+          <option value="" disabled selected>+ Add to Watchlist...</option>
+          {% for wl in user_watchlists %}
+            <option value="{{ wl.list_name }}">{{ wl.list_name }}</option>
+          {% endfor %}
+          <option value="__NEW__">[Create New List...]</option>
+        </select>
+      </div>
+      
+      <!-- Interactive Rating Widget -->
+      <div class="interactive-rating-box">
+        <div class="rating-box-title">Your Rating</div>
+        <div class="star-rating-bar" id="starRatingBar">
+          {% for i in range(1, 11) %}
+          <button class="star-btn {% if user_rating_val >= i %}highlighted{% endif %}" data-rating="{{ i }}" onclick="submitInstantRating('{{ film.film_id }}', {{ i }})" title="Rate {{ i }} stars">
+            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          </button>
+          {% endfor %}
+        </div>
+        <div class="rating-value-display" id="ratingDisplay">
+          {% if user_rating_val > 0 %}
+            You rated this film: <strong>★ {{ user_rating_val }} / 10</strong>
+          {% else %}
+            Not Rated Yet
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- INFLUENCE + REVIEWS GRID -->
+<div class="detail-grid">
+
+  <!-- Inspired By -->
+  <div class="detail-card">
+    <h3>Inspired By</h3>
+    {% if influences.influenced_by %}
+      <div class="influence-grid">
+        {% for link in influences.influenced_by %}
+        <div class="influence-card">
+          <a href="/film/{{ link.get('source_film_id','') }}" style="text-decoration:none;">
+            <div class="influence-poster-wrap">
+              <img class="influence-poster" data-lazy-title="{{ link.film_title }}" src="/static/img/placeholder.svg" alt="{{ link.film_title }}">
+            </div>
+            <div class="influence-info">
+              <div class="influence-title" title="{{ link.film_title }}">{{ link.film_title }}</div>
+              <div class="influence-director">Directed by {{ link.director_name or 'Unknown' }}</div>
+            </div>
+          </a>
+          
+          <!-- AJAX Influence Voting -->
+          {% if current_user %}
+          <div class="vote-widget">
+            <button class="vote-btn" onclick="voteInfluence('{{ link.link_id }}', 1)">
+              <svg viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>
+            </button>
+            <span class="vote-score" id="vote-score-{{ link.link_id }}">{{ link.net_votes or 0 }}</span>
+            <button class="vote-btn" onclick="voteInfluence('{{ link.link_id }}', -1)">
+              <svg viewBox="0 0 24 24"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>
+            </button>
+          </div>
+          {% else %}
+          <div class="vote-widget" style="justify-content:center; color:var(--muted)">
+            <span class="vote-score">{{ link.net_votes or 0 }} votes</span>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color:var(--muted);font-size:13.5px">No recorded influences found.</p>
+    {% endif %}
+  </div>
+
+  <!-- Films It Influenced -->
+  <div class="detail-card">
+    <h3>Films It Influenced</h3>
+    {% if influences.influenced %}
+      <div class="influence-grid">
+        {% for link in influences.influenced %}
+        <div class="influence-card">
+          <a href="/film/{{ link.get('influenced_film_id', link.get('target_film_id','')) }}" style="text-decoration:none;">
+            <div class="influence-poster-wrap">
+              <img class="influence-poster" data-lazy-title="{{ link.film_title }}" src="/static/img/placeholder.svg" alt="{{ link.film_title }}">
+            </div>
+            <div class="influence-info">
+              <div class="influence-title" title="{{ link.film_title }}">{{ link.film_title }}</div>
+              <div class="influence-director">Directed by {{ link.director_name or 'Unknown' }}</div>
+            </div>
+          </a>
+          
+          <!-- AJAX Influence Voting -->
+          {% if current_user %}
+          <div class="vote-widget">
+            <button class="vote-btn" onclick="voteInfluence('{{ link.link_id }}', 1)">
+              <svg viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>
+            </button>
+            <span class="vote-score" id="vote-score-{{ link.link_id }}">{{ link.net_votes or 0 }}</span>
+            <button class="vote-btn" onclick="voteInfluence('{{ link.link_id }}', -1)">
+              <svg viewBox="0 0 24 24"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>
+            </button>
+          </div>
+          {% else %}
+          <div class="vote-widget" style="justify-content:center; color:var(--muted)">
+            <span class="vote-score">{{ link.net_votes or 0 }} votes</span>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color:var(--muted);font-size:13.5px">No recorded influences found.</p>
+    {% endif %}
+  </div>
+
+  <!-- Reviews Block -->
+  <div class="detail-card" style="grid-column: span 2;">
+    <h3 style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Reviews ({{ reviews|length }})</span>
+    </h3>
+    
+    <!-- Write a Review Form for logged-in users -->
+    {% if current_user %}
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:24px;">
+      <h4 style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--accent-cyan); margin-bottom:12px;">Write a Review</h4>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:13.5px; color:var(--muted);">Your Rating:</span>
+          <select id="reviewRating" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:4px; font-family:inherit;">
+            <option value="10" {% if user_rating_val == 10 %}selected{% endif %}>★ 10 - Masterpiece</option>
+            <option value="9" {% if user_rating_val == 9 %}selected{% endif %}>★ 9 - Excellent</option>
+            <option value="8" {% if user_rating_val == 8 or user_rating_val == 0 %}selected{% endif %}>★ 8 - Very Good</option>
+            <option value="7" {% if user_rating_val == 7 %}selected{% endif %}>★ 7 - Good</option>
+            <option value="6" {% if user_rating_val == 6 %}selected{% endif %}>★ 6 - Fine</option>
+            <option value="5" {% if user_rating_val == 5 %}selected{% endif %}>★ 5 - Average</option>
+            <option value="4" {% if user_rating_val == 4 %}selected{% endif %}>★ 4 - Bad</option>
+            <option value="3" {% if user_rating_val == 3 %}selected{% endif %}>★ 3 - Very Bad</option>
+            <option value="2" {% if user_rating_val == 2 %}selected{% endif %}>★ 2 - Horrible</option>
+            <option value="1" {% if user_rating_val == 1 %}selected{% endif %}>★ 1 - Unwatchable</option>
+          </select>
+        </div>
+        <textarea id="reviewBody" rows="4" placeholder="Share your thoughts about this film..." style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:4px; font-family:inherit; font-size:13.5px; resize:vertical; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--primary)'"></textarea>
+        <button class="btn-gold" onclick="submitReview('{{ film.film_id }}')" style="align-self:flex-start;">Submit Review</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:24px; text-align:center; font-size:13.5px; color:var(--muted)">
+      Please <a href="/login" style="color:var(--accent-cyan); text-decoration:underline;">sign in</a> to write a review.
+    </div>
+    {% endif %}
+    
+    {% if reviews %}
+      <div style="display:flex; flex-direction:column; gap:16px;" id="reviewsContainer">
+        {% for r in reviews %}
+        <div class="review-item" id="review-{{ r.review_id }}" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:18px; display:flex; flex-direction:column; gap:10px;">
+          <div class="review-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="review-avatar" style="width:28px; height:28px; font-size:12px;">{{ (r.get('username') or 'U')[0]|upper }}</div>
+              <span class="review-user">{{ r.get('username') or ('User #'+r.get('user_id')|string) }}</span>
+              {% if r.get('rating') %}
+              <span class="review-rating" style="margin-left:8px;">
+                <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                {{ r.rating }}
+              </span>
+              {% endif %}
+            </div>
+
+          </div>
+          {% if r.get('body') %}
+            <p class="review-body" style="font-size:13.5px; line-height:1.6; color:#cbd5e1; margin-bottom:0;">{{ r.get('body','') }}</p>
+          {% else %}
+            <p class="review-body" style="font-size:12.5px; color:var(--muted); font-style:italic; margin-bottom:0;">(User left a rating only)</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div id="reviewsContainer" style="display:flex; flex-direction:column; gap:16px;"></div>
+      <p id="noReviewsText" style="color:var(--muted); font-size:13.5px; text-align:center; padding:30px;">No reviews yet. Be the first to share your thoughts!</p>
+    {% endif %}
+  </div>
+
+  <!-- Awards -->
+  {% if awards %}
+  <div class="detail-card">
+    <h3>Awards & Nominations</h3>
+    {% for a in awards %}
+    <div class="award-row">
+      <span class="award-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+      </span>
+      <div>
+        <div class="award-name">{{ a.get('award_name','') }}</div>
+        <div class="award-cat">{{ a.get('category','') }}</div>
+      </div>
+      <span class="award-year">{{ a.get('year','') }}</span>
+      {% if a.get('won')=='Yes' or a.get('outcome')=='Won' %}
+      <span class="award-won">WON</span>
+      {% else %}
+      <span class="award-nom">NOM</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- CREW -->
+{% if crew %}
+<section class="section" style="padding-top:20px;">
+  <div class="section-header">
+    <h2 class="section-title">Key Crew</h2>
+  </div>
+  <div class="crew-grid">
+    {% for c in crew %}
+    <div class="crew-card {% if c.get('leadp')|string == '1' or c.get('leadp') == 1 or c.get('leadp') == True %}lead-member{% endif %}">
+      <div class="crew-name {% if c.get('leadp')|string == '1' or c.get('leadp') == 1 or c.get('leadp') == True %}lead-name{% endif %}">
+        {{ c.get('full_name','') }}
+        {% if c.get('leadp')|string == '1' or c.get('leadp') == 1 or c.get('leadp') == True %}
+          <span style="font-size:9px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:3px; margin-left:4px; font-weight:700; vertical-align:middle;">LEAD</span>
+        {% endif %}
+      </div>
+      <div class="crew-role">{{ c.get('role','') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load posters dynamically using base getPosterUrl & getBackdropUrl
+const title = document.getElementById('mainPoster').dataset.title;
+const year = document.getElementById('mainPoster').dataset.year;
+
+getPosterUrl(title, year).then(url => {
+  document.getElementById('mainPoster').src = url;
+});
+
+getBackdropUrl(title, year).then(url => {
+  document.querySelector('.film-hero-bg').style.backgroundImage = `url('${url}')`;
+});
+
+// Load inspired cards lazy posters
+document.querySelectorAll('.influence-poster[data-lazy-title]').forEach(img => {
+  getPosterUrl(img.dataset.lazyTitle, '').then(url => img.src = url);
+});
+
+// Interactive Stars Rating Widget logic
+let currentUserRating = {{ user_rating_val|default(0) }};
+const starBtns = document.querySelectorAll('.star-btn');
+
+starBtns.forEach(btn => {
+  btn.addEventListener('mouseover', () => {
+    const rating = parseInt(btn.dataset.rating);
+    highlightStars(rating);
+  });
+  
+  btn.addEventListener('mouseleave', () => {
+    highlightStars(currentUserRating);
+  });
+});
+
+function highlightStars(rating) {
+  starBtns.forEach(btn => {
+    const btnRating = parseInt(btn.dataset.rating);
+    if (btnRating <= rating) {
+      btn.classList.add('highlighted');
+    } else {
+      btn.classList.remove('highlighted');
+    }
+  });
+}
+
+function submitInstantRating(film_id, rating) {
+  fetch('/api/review', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({film_id, rating, body: ""})
+  }).then(r=>r.json()).then(d=>{
+    if(d.success) {
+      showToast(`Movie rated ${rating} / 10 successfully!`);
+      currentUserRating = rating;
+      highlightStars(rating);
+      document.getElementById('ratingDisplay').innerHTML = `You rated this film: <strong>★ ${rating} / 10</strong>`;
+      
+      // Auto-update review rating select value if write review section exists
+      const revSelect = document.getElementById('reviewRating');
+      if (revSelect) revSelect.value = rating;
+      
+      // Auto-refresh after a slight delay to update the movie's average rating in headers
+      setTimeout(() => window.location.reload(), 1200);
+    } else {
+      showToast(d.error || "Failed to submit rating", "error");
+    }
+  });
+}
+
+// Watchlist AJAX functions
+function addToWatchlist(film_id, listName) {
+    if(listName === '__NEW__') {
+        // Implement custom modal input or styled prompt
+        const name = prompt("Enter a name for the new watchlist:");
+        if(!name) {
+            document.getElementById('watchlistSelect').value = '';
+            return;
+        }
+        listName = name;
+    }
+    
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({list_name: listName, film_id: film_id})
+    }).then(r=>r.json()).then(d=>{
+        if(d.success) {
+            showToast(`Successfully added to watchlist: ${listName}!`);
+            setTimeout(() => window.location.reload(), 1200);
+        }
+    });
+}
+
+// Influence Voting AJAX
+function voteInfluence(link_id, vote_val) {
+    fetch('/api/vote', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({link_id: link_id, vote: vote_val})
+    }).then(r=>r.json()).then(d=>{
+        if(d.success) {
+            const scoreSpan = document.getElementById(`vote-score-${link_id}`);
+            if(scoreSpan) {
+                let currentScore = parseInt(scoreSpan.textContent) || 0;
+                scoreSpan.textContent = currentScore + vote_val;
+            }
+            showToast("Influence vote cast successfully!");
+        } else {
+            showToast(d.error || "An error occurred", "error");
+        }
+    });
+}
+
+// Review submission AJAX
+function submitReview(film_id) {
+    const rating = document.getElementById('reviewRating').value;
+    const body = document.getElementById('reviewBody').value.trim();
+    if(!body) return showToast("Please write something for your review", "error");
+    
+    fetch('/api/review', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({film_id, rating, body})
+    }).then(r=>r.json()).then(d=>{
+        if(d.success) {
+            showToast("Review submitted successfully!");
+            setTimeout(() => window.location.reload(), 1200);
+        }
+    });
+}
+
+
+</script>
+{% endblock %}

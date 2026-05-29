@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}My Watchlists — CineTrace{% endblock %}
+
+{% block head %}
+<style>
+.wl-header{padding:40px 60px 20px;display:flex;align-items:center;justify-content:space-between}
+.wl-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:2px;color:var(--text)}
+.wl-form{padding:0 60px 40px;display:flex;gap:15px;align-items:center}
+.form-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 15px;border-radius:4px;font-family:inherit;font-size:14px;outline:none;transition:border-color 0.2s;width:250px}
+.form-input:focus{border-color:var(--primary)}
+.btn-gold{background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:4px;font-weight:700;cursor:pointer;transition:background 0.2s}
+.btn-gold:hover{background:var(--primary-hover)}
+
+.wl-container{padding:0 60px 60px;display:flex;flex-direction:column;gap:40px}
+.wl-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:30px}
+.wl-block-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:15px}
+.wl-name{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--accent-cyan)}
+.wl-meta{font-size:12px;color:var(--muted);text-transform:uppercase}
+
+.film-row{display:flex;gap:15px;overflow-x:auto;padding-bottom:15px;scrollbar-width:none}
+.film-row::-webkit-scrollbar{display:none}
+.wl-item{position:relative;flex:0 0 140px;transition:transform 0.2s}
+.wl-item:hover{transform:translateY(-4px)}
+.wl-poster{width:140px;height:210px;object-fit:cover;border-radius:4px;background:var(--surface);display:block;margin-bottom:8px}
+.wl-item-title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-remove{position:absolute;top:5px;right:5px;background:rgba(229,57,53,0.9);color:white;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s, background 0.2s}
+.wl-item:hover .btn-remove{opacity:1}
+.btn-remove:hover{background:var(--red)}
+
+@media(max-width:768px){
+    .wl-header, .wl-form, .wl-container{padding-left:20px;padding-right:20px}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wl-header">
+    <h1 class="wl-title">My Workspace</h1>
+</div>
+
+<div class="wl-form">
+    <input type="text" id="newListName" class="form-input" placeholder="New Watchlist Name...">
+    <button class="btn-gold" onclick="createWatchlist()">Create List</button>
+</div>
+
+<div class="wl-container">
+    {% for wl in watchlists %}
+    <div class="wl-block">
+        <div class="wl-block-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <div class="wl-name">{{ wl.list_name }}</div>
+                <div class="wl-meta">{{ 'Public' if wl.is_public == '1' else 'Private' }} • {{ wl.films|length }} Films</div>
+            </div>
+            
+            <!-- Quick Add Movie Feature -->
+            <div class="quick-add-container" style="display: flex; align-items: center; gap: 8px; position: relative;">
+                <input type="text" 
+                       placeholder="+ Add film..." 
+                       class="form-input quick-add-input" 
+                       data-list-name="{{ wl.list_name|e }}"
+                       data-list-id="{{ wl.list_id }}"
+                       style="width: 160px; padding: 6px 12px; font-size: 13px;"
+                       oninput="searchMovieToAddToWatchlist(this)"
+                       onfocus="searchMovieToAddToWatchlist(this)">
+                <div class="quick-add-results" 
+                     id="results-{{ wl.list_id }}" 
+                     style="display: none; position: absolute; top: 100%; right: 0; width: 260px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; z-index: 200; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+                </div>
+                <a href="/browse" class="btn-gold" style="padding: 6px 12px; font-size: 13px; text-decoration: none; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    Browse
+                </a>
+            </div>
+        </div>
+        
+        {% if wl.films %}
+        <div class="film-row">
+            {% for f in wl.films %}
+            <div class="wl-item" id="item-{{ wl.list_id }}-{{ f.film_id }}">
+                <a href="/film/{{ f.film_id }}">
+                    <img class="wl-poster" data-lazy-title="{{ f.title }}" src="/static/img/placeholder.svg" alt="{{ f.title }}">
+                </a>
+                <button class="btn-remove" title="Remove from list" onclick="removeFromList('{{ wl.list_id }}', '{{ f.film_id }}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+                <div class="wl-item-title">{{ f.title }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">This list is empty. Explore films and add them here!</div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="no-data" style="background:var(--surface2);border-radius:8px">You don't have any watchlists yet. Create one above!</div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load posters
+document.querySelectorAll('img[data-lazy-title]').forEach(img=>{
+  const t=img.dataset.lazyTitle;
+  getPosterUrl(t, '').then(url => { img.src = url; });
+});
+
+function createWatchlist() {
+    const name = document.getElementById('newListName').value.trim();
+    if(!name) { showToast('Please enter a name for your watchlist', 'error'); return; }
+    
+    // We hack the "add" endpoint to create an empty list if film_id is null
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({list_name: name, film_id: ""})
+    }).then(r=>r.json()).then(d=>{
+        if(d.success) window.location.reload();
+    });
+}
+
+function removeFromList(list_id, film_id) {
+    showConfirm('Remove Film', 'Are you sure you want to remove this film from your watchlist?', () => {
+        fetch('/api/watchlist/remove', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({list_id, film_id})
+        }).then(r=>r.json()).then(d=>{
+            if(d.success) {
+                showToast('Film removed from watchlist');
+                document.getElementById(`item-${list_id}-${film_id}`).remove();
+            }
+        });
+    });
+}
+
+// Live Search to Add Movie
+let addDebounce;
+function searchMovieToAddToWatchlist(inputEl) {
+    clearTimeout(addDebounce);
+    const q = inputEl.value.trim();
+    const listName = inputEl.dataset.listName;
+    const listId = inputEl.dataset.listId;
+    const resultsBox = document.getElementById(`results-${listId}`);
+    
+    if (!q) {
+        resultsBox.style.display = 'none';
+        return;
+    }
+    
+    addDebounce = setTimeout(() => {
+        fetch('/api/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(films => {
+                if (!films.length) {
+                    resultsBox.innerHTML = '<div style="padding: 10px; font-size: 12px; color: var(--muted); text-align: center;">No films found</div>';
+                    resultsBox.style.display = 'block';
+                    return;
+                }
+                
+                resultsBox.innerHTML = films.map(f => {
+                    return `
+                    <div class="sr-item" data-film-id="${f.film_id}">
+                        <img class="sr-poster" src="/static/img/placeholder.svg" data-lazy-add-title="${f.title}" alt="">
+                        <div class="sr-info">
+                            <div class="sr-title" style="font-size: 13px; font-weight: 600; text-align: left; margin-bottom: 2px;">${f.title}</div>
+                            <div class="sr-meta" style="font-size: 11px; color: var(--muted); text-align: left;">${f.release_year || ''} · ${f.director_name || ''}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+                
+                // Add event listeners programmatically to prevent quote breaking syntax errors
+                resultsBox.querySelectorAll('.sr-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        addFilmToWatchlist(item.dataset.filmId, listName);
+                    });
+                });
+
+                resultsBox.style.display = 'block';
+                
+                // Lazy load search results images
+                resultsBox.querySelectorAll('img[data-lazy-add-title]').forEach(img => {
+                    getPosterUrl(img.dataset.lazyAddTitle, '').then(url => img.src = url);
+                });
+            });
+    }, 200);
+}
+
+function addFilmToWatchlist(filmId, listName) {
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({list_name: listName, film_id: filmId})
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast(`Added to "${listName}"!`);
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            showToast(d.error || 'Failed to add film', 'error');
+        }
+    });
+}
+
+// Close results when clicking outside
+document.addEventListener('click', e => {
+    if (!e.target.closest('.quick-add-container')) {
+        document.querySelectorAll('.quick-add-results').forEach(box => box.style.display = 'none');
+    }
+});
+</script>
+{% endblock %}

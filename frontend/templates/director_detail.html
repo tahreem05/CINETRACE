@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% block title %}{{ director.name }} — CineTrace{% endblock %}
+
+{% block head %}
+<style>
+  /* ── HERO SECTION ── */
+  .director-hero {
+    position: relative;
+    padding: 80px 60px 60px;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+      linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .director-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+  }
+
+  /* Decorative film-reel pattern */
+  .director-hero::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    right: 40px;
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(255, 255, 255, 0.02);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .director-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 7vw, 80px);
+    letter-spacing: 3px;
+    line-height: 0.95;
+    color: var(--text);
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .director-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    backdrop-filter: blur(8px);
+  }
+
+  .meta-chip svg {
+    width: 14px;
+    height: 14px;
+    color: var(--accent-cyan);
+    flex-shrink: 0;
+  }
+
+  .meta-chip span {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .director-bio {
+    font-size: 15px;
+    line-height: 1.8;
+    color: #cbd5e1;
+    max-width: 720px;
+    margin-bottom: 36px;
+  }
+
+  /* ── STATS ROW ── */
+  .director-stats {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(16, 18, 26, 0.5);
+    backdrop-filter: blur(12px);
+    max-width: 600px;
+  }
+
+  .director-stat {
+    flex: 1;
+    padding: 22px 20px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    transition: background 0.2s ease;
+  }
+
+  .director-stat:last-child {
+    border-right: none;
+  }
+
+  .director-stat:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .director-stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 34px;
+    letter-spacing: 1px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .director-stat-value svg {
+    width: 20px;
+    height: 20px;
+    color: var(--accent-cyan);
+    fill: var(--accent-cyan);
+  }
+
+  .director-stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  /* ── BEST FILM SPOTLIGHT ── */
+  .spotlight-section {
+    padding: 48px 60px 0;
+  }
+
+  .spotlight-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .spotlight-label svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .spotlight-card {
+    display: flex;
+    gap: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 640px;
+    transition: border-color 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .spotlight-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+
+  .spotlight-poster-wrap {
+    flex-shrink: 0;
+    width: 120px;
+    aspect-ratio: 2/3;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .spotlight-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .spotlight-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .spotlight-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    letter-spacing: 1.5px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .spotlight-year {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .spotlight-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    width: fit-content;
+  }
+
+  .spotlight-rating svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  /* ── FILMOGRAPHY SECTION ── */
+  .filmography-section {
+    padding: 48px 60px 60px;
+  }
+
+  .filmography-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .filmography-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .filmography-count {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .filmography-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 24px;
+  }
+
+  /* ── FILM CARD ── */
+  .dir-film-card {
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dir-film-card:hover {
+    transform: translateY(-6px);
+  }
+
+  .dir-card-poster-wrap {
+    position: relative;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    aspect-ratio: 2/3;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+
+  .dir-card-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .dir-card-rating {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(16, 18, 26, 0.85);
+    border: 1px solid var(--border);
+    color: var(--accent-cyan);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .dir-card-rating svg {
+    width: 10px;
+    height: 10px;
+    fill: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  .dir-card-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dir-card-year {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .dir-card-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .genre-pill {
+    font-size: 10px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    color: rgba(248, 250, 252, 0.6);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  /* ── EMPTY STATE ── */
+  .no-films {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .no-films svg {
+    width: 48px;
+    height: 48px;
+    color: var(--border);
+    margin-bottom: 16px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .director-hero {
+      padding: 60px 24px 40px;
+    }
+    .spotlight-section,
+    .filmography-section {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+    .filmography-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+    }
+    .spotlight-card {
+      flex-direction: column;
+      gap: 16px;
+      max-width: 100%;
+    }
+    .spotlight-poster-wrap {
+      width: 100px;
+    }
+    .director-stats {
+      max-width: 100%;
+    }
+  }
+
+  @media (max-width: 540px) {
+    .filmography-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .director-stats {
+      flex-direction: column;
+    }
+    .director-stat {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .director-stat:last-child {
+      border-bottom: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── HERO ── -->
+<div class="director-hero">
+  <h1 class="director-name">{{ director.name }}</h1>
+
+  <div class="director-meta-chips">
+    {% if director.nationality %}
+    <div class="meta-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 004 0V8.5A2.5 2.5 0 0019.5 6H21M12 21a9 9 0 100-18 9 9 0 000 18z"></path>
+      </svg>
+      <span>{{ director.nationality }}</span>
+    </div>
+    {% endif %}
+    {% if director.birth_year %}
+    <div class="meta-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      Born <span>{{ director.birth_year }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if director.biography %}
+  <p class="director-bio">{{ director.biography }}</p>
+  {% endif %}
+
+  <!-- Stats Row -->
+  <div class="director-stats">
+    <div class="director-stat">
+      <div class="director-stat-value">{{ films|length }}</div>
+      <div class="director-stat-label">Films</div>
+    </div>
+    <div class="director-stat">
+      <div class="director-stat-value">
+        {% if avg_rating %}
+          <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon></svg>
+          {{ "%.1f"|format(avg_rating) }}
+        {% else %}
+          --
+        {% endif %}
+      </div>
+      <div class="director-stat-label">Avg Rating</div>
+    </div>
+    <div class="director-stat">
+      <div class="director-stat-value">
+        {% set total_awards = films|sum(attribute='awards_won') %}
+        {{ total_awards }}
+      </div>
+      <div class="director-stat-label">Awards</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BEST FILM SPOTLIGHT ── -->
+{% if best_film %}
+<div class="spotlight-section">
+  <div class="spotlight-label">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="var(--accent-cyan)" stroke="var(--accent-cyan)"></polygon>
+    </svg>
+    Highest Rated Film
+  </div>
+  <a href="/film/{{ best_film.film_id }}" class="spotlight-card">
+    <div class="spotlight-poster-wrap">
+      <img class="spotlight-poster" data-lazy-title="{{ best_film.title }}" data-lazy-year="{{ best_film.release_year }}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="{{ best_film.title }}">
+    </div>
+    <div class="spotlight-info">
+      <div class="spotlight-title">{{ best_film.title }}</div>
+      <div class="spotlight-year">{{ best_film.release_year }}{% if best_film.runtime_min %} &middot; {{ best_film.runtime_min }} min{% endif %}</div>
+      {% if best_film.avg_rating %}
+      <div class="spotlight-rating">
+        <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon></svg>
+        {{ "%.1f"|format(best_film.avg_rating) }}
+      </div>
+      {% endif %}
+    </div>
+  </a>
+</div>
+{% endif %}
+
+<!-- ── FILMOGRAPHY ── -->
+<div class="filmography-section">
+  <div class="filmography-header">
+    <h2 class="filmography-title">Filmography</h2>
+    <span class="filmography-count">{{ films|length }} film{{ 's' if films|length != 1 else '' }}</span>
+  </div>
+
+  {% if films %}
+  <div class="filmography-grid">
+    {% for film in films %}
+    <a href="/film/{{ film.film_id }}" class="dir-film-card">
+      <div class="dir-card-poster-wrap">
+        <img class="dir-card-poster" data-lazy-title="{{ film.title }}" data-lazy-year="{{ film.release_year }}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="{{ film.title }}">
+        {% if film.avg_rating %}
+        <div class="dir-card-rating">
+          <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon></svg>
+          {{ "%.1f"|format(film.avg_rating) }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="dir-card-title">{{ film.title }}</div>
+      <div class="dir-card-year">{{ film.release_year }}{% if film.country %} &middot; {{ film.country }}{% endif %}</div>
+      {% if film.genres %}
+      <div class="dir-card-genres">
+        {% for genre in film.genres %}
+          <span class="genre-pill">{{ genre.strip() }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="no-films">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <line x1="9" y1="3" x2="9" y2="21"></line>
+      <line x1="15" y1="3" x2="15" y2="21"></line>
+      <line x1="3" y1="9" x2="21" y2="9"></line>
+      <line x1="3" y1="15" x2="21" y2="15"></line>
+    </svg>
+    No films found for this director.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const lazyImages = document.querySelectorAll('img[data-lazy-title]');
+    lazyImages.forEach(function(img) {
+      const title = img.getAttribute('data-lazy-title');
+      const year = img.getAttribute('data-lazy-year') || '';
+      getPosterUrl(title, year).then(function(url) {
+        img.src = url;
+      });
+    });
+  });
+</script>
+{% endblock %}
