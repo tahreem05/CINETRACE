@@ -147,7 +147,7 @@ def get_influences_for_film(film_id):
     votes_list = cursor.fetchall()
     votes_map = {str(v['link_id']): int(v['net_votes']) for v in votes_list}
     
-    # Fetch influence links where source or target is film_id
+    # Fetch influence links where source or target is film_id.
     cursor.execute("""
         SELECT il.*, 
                f_src.title AS src_title, 
