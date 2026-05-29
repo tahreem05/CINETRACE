@@ -1,4 +1,4 @@
-﻿director_id,name,nationality,birth_year,biography
+director_id,name,nationality,birth_year,biography
 1,Akira Kurosawa,Japanese,1910,Master of Japanese cinema known for epic samurai films and psychological dramas.
 2,Federico Fellini,Italian,1920,"Pioneer of Italian neorealism and later art-house cinema, celebrated for dreamlike narratives."
 3,Ingmar Bergman,Swedish,1918,Renowned for existential and psychological explorations of the human condition.
@@ -19,3 +19,5 @@
 18,Ousmane Sembène,Senegalese,1923,"Father of African cinema, whose films gave voice to post-colonial West African experience."
 19,Chantal Akerman,Belgian,1950,Minimalist filmmaker whose Jeanne Dielman redefined feminist and structural cinema.
 20,Satyajit Ray,Indian,1921,Bengali auteur whose Apu Trilogy brought Indian cinema to international acclaim.
+21,Edward Yang,Taiwanese,1947,"Leading figure of the Taiwanese New Wave, celebrated for novels of modern Taipei urban life like Yi Yi and A Brighter Summer Day."
+22,Michael Snow,Canadian,1928,"Canadian avant-garde artist, filmmaker, and pioneer of structural film."

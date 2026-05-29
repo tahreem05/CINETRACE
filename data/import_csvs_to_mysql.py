@@ -16,12 +16,12 @@ import sys
 from pathlib import Path
 
 # ─── CONFIGURE THESE ──────────────────────────────────────────────────────────
-CSV_DIR  = r"C:\Users\OMAR\Desktop\CineTrace\data\cinetrace_csvs"
+CSV_DIR  = r"D:\CodeWork\CineTrace\CineTrace\data\cinetrace_csvs"
 
 HOST     = "localhost"
 PORT     = 3306
 USER     = "root"
-PASSWORD = "Mediocre123@@@"        # ← your MySQL root password here
+PASSWORD = "8808"        # ← your MySQL root password here
 DATABASE = "cinetrace"
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -105,9 +105,11 @@ def import_table(cursor, table_name: str) -> int:
 
     placeholders = ", ".join(["%s"] * len(columns))
     col_names    = ", ".join(columns)
+    update_parts = [f"`{col}` = VALUES(`{col}`)" for col in columns]
     sql = (
-        f"INSERT IGNORE INTO `{table_name}` ({col_names}) "
-        f"VALUES ({placeholders})"
+        f"INSERT INTO `{table_name}` ({col_names}) "
+        f"VALUES ({placeholders}) "
+        f"ON DUPLICATE KEY UPDATE " + ", ".join(update_parts)
     )
 
     cursor.executemany(sql, rows)
@@ -142,9 +144,7 @@ def main():
 
     conn.commit()
     cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
-
-    print(f"\ Done! {total_rows} total rows imported across {len(TABLE_ORDER)} tables.")
-
+    print(f"\\ Done! {total_rows} total rows imported across {len(TABLE_ORDER)} tables.")
     cursor.close()
     conn.close()
 

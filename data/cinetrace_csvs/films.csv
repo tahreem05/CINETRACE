@@ -1,4 +1,4 @@
-﻿film_id,title,release_year,country,synopsis,director_id,cinematographer_id,budget,language,runtime_min
+film_id,title,release_year,country,synopsis,director_id,cinematographer_id,budget,language,runtime_min
 1,Rashomon,1950,Japan,A murder is recounted by four unreliable witnesses in feudal Japan.,1,1,,Japanese,88
 2,Seven Samurai,1954,Japan,A poor village hires seven masterless samurai to protect them from bandits.,1,1,,Japanese,207
 3,La Dolce Vita,1960,Italy,A journalist wanders through Rome's celebrity nightlife seeking meaning.,2,2,,Italian,174
@@ -59,3 +59,6 @@
 58,Satyricon,1969,Italy,Two students pursue love and adventure in a fragmentary vision of ancient Rome.,2,2,,Italian,128
 59,Scenes from a Marriage,1973,Sweden,A married couple's relationship slowly dissolves over years of separation.,3,3,,Swedish,169
 60,Eyes Wide Shut,1999,UK,A doctor embarks on a surreal odyssey through sexual encounters in New York.,4,4,65000000,English,159
+61,Yi Yi,2000,Taiwan,Each member of a Taipei family grapples with existential dilemmas.,21,12,,Mandarin,173
+62,A Brighter Summer Day,1991,Taiwan,A young boy drifts into Taipei street gangs and a tragic romance.,21,12,,Mandarin,237
+63,Wavelength,1967,Canada,A landmark avant-garde film consisting of a single continuous zoom across a loft room.,22,16,,English,45
