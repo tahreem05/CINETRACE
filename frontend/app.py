@@ -72,15 +72,16 @@ def init_and_seed_sqlite(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Users'")
-        table_exists = cursor.fetchone()
+        # Verify if the database exists, has the Users table, and contains seeded records
+        cursor.execute("SELECT COUNT(*) FROM Users")
+        has_records = cursor.fetchone()[0] > 0
     except Exception:
-        table_exists = False
+        has_records = False
     cursor.close()
     conn.close()
 
-    if table_exists:
-        return  # Already initialized
+    if has_records:
+        return  # Already initialized and seeded
 
     print("Initializing self-healing SQLite database...")
     
