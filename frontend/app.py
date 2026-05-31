@@ -179,31 +179,177 @@ def init_and_seed_sqlite(db_path):
         conn.close()
         print("Self-healing SQLite database initialized and seeded successfully!")
 
+def init_and_seed_mysql(conn):
+    cursor = conn.cursor()
+    try:
+        # Verify if the Users table already exists and contains seeded records
+        cursor.execute("SELECT COUNT(*) FROM Users")
+        has_records = cursor.fetchone()[0] > 0
+    except Exception:
+        has_records = False
+    cursor.close()
+
+    if has_records:
+        return  # Already initialized and seeded
+
+    print("Initializing blank Railway MySQL database...")
+    
+    # Locate CineTrace.sql schema
+    schema_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "CineTrace.sql"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "CineTrace.sql"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "CineTrace.sql")
+    ]
+    schema_path = None
+    for p in schema_paths:
+        if os.path.exists(p):
+            schema_path = p
+            break
+
+    if schema_path:
+        try:
+            with open(schema_path, "r", encoding="utf-8") as sf:
+                sql_script = sf.read()
+            
+            cursor = conn.cursor()
+            
+            # Remove database creation and selection statements for compatibility
+            cleaned_lines = []
+            for line in sql_script.splitlines():
+                line_upper = line.strip().upper()
+                if (line_upper.startswith("CREATE DATABASE") or 
+                    line_upper.startswith("USE ") or 
+                    line_upper.startswith("SELECT ") or 
+                    line_upper.startswith("SET ")):
+                    continue
+                cleaned_lines.append(line)
+            cleaned_script = "\n".join(cleaned_lines)
+            
+            # Split by semicolon to execute queries individually in MySQL
+            queries = cleaned_script.split(";")
+            for query in queries:
+                q_strip = query.strip()
+                if q_strip:
+                    try:
+                        cursor.execute(q_strip)
+                    except Exception as e:
+                        if "SELECT" not in q_strip:
+                            print(f"Warning during SQL execution: {e}")
+            conn.commit()
+            cursor.close()
+            print("MySQL tables created successfully.")
+        except Exception as e:
+            print(f"Error creating MySQL tables: {e}")
+
+    # Seed data from CSV files
+    csv_dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "cinetrace_csvs"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "cinetrace_csvs"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cinetrace_csvs")
+    ]
+    csv_dir = None
+    for d in csv_dirs:
+        if os.path.exists(d):
+            csv_dir = d
+            break
+
+    if csv_dir:
+        TABLE_ORDER = [
+            "Directors", "Cinematographers", "Genres", "Cinematic_Movements",
+            "Crew_Members", "Users", "Films", "Film_Genres", "Film_Movements",
+            "Film_Crew", "Influence_Links", "Awards", "Reviews", "Watchlists",
+            "Watchlist_Items", "Influence_Votes"
+        ]
+        
+        cursor = conn.cursor()
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+        
+        for table in TABLE_ORDER:
+            csv_file = os.path.join(csv_dir, f"{table.lower()}.csv")
+            if not os.path.exists(csv_file):
+                csv_file = os.path.join(csv_dir, f"{table}.csv")
+            if not os.path.exists(csv_file):
+                continue
+                
+            try:
+                with open(csv_file, newline="", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    columns = reader.fieldnames
+                    if not columns:
+                        continue
+                        
+                    rows = []
+                    for row in reader:
+                        rows.append(tuple(None if v == "" else v for v in row.values()))
+                        
+                    if not rows:
+                        continue
+                        
+                    placeholders = ", ".join(["%s"] * len(columns))
+                    col_names = ", ".join(columns)
+                    update_parts = [f"`{col}` = VALUES(`{col}`)" for col in columns]
+                    sql = (
+                        f"INSERT INTO `{table}` ({col_names}) VALUES ({placeholders}) "
+                        f"ON DUPLICATE KEY UPDATE " + ", ".join(update_parts)
+                    )
+                    cursor.executemany(sql, rows)
+                print(f"Seeded MySQL table {table} with {len(rows)} rows.")
+            except Exception as e:
+                print(f"Error seeding MySQL table {table}: {e}")
+                
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
+        conn.commit()
+        cursor.close()
+        print("MySQL database initialized and seeded successfully!")
+
 SQLITE_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cinetrace.db")
+mysql_init_checked = False
 
 def get_db_connection():
-    db_host = os.getenv("DB_HOST")
+    global mysql_init_checked
+    
+    db_host = os.getenv("DB_HOST") or os.getenv("MYSQLHOST")
+    db_port_raw = os.getenv("DB_PORT") or os.getenv("MYSQLPORT")
+    db_port = int(db_port_raw) if db_port_raw and db_port_raw.isdigit() else 3306
+    db_user = os.getenv("DB_USER") or os.getenv("MYSQLUSER")
+    db_pass = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD")
+    db_name = os.getenv("DB_DATABASE") or os.getenv("MYSQLDATABASE")
+
     if db_host and db_host != "localhost":
         try:
-            return mysql.connector.connect(
+            conn = mysql.connector.connect(
                 host=db_host,
-                port=int(os.getenv("DB_PORT", 3306)),
-                user=os.getenv("DB_USER", "root"),
-                password=os.getenv("DB_PASSWORD", "8808"),
-                database=os.getenv("DB_DATABASE", "cinetrace")
+                port=db_port,
+                user=db_user,
+                password=db_pass,
+                database=db_name
             )
+            if not mysql_init_checked:
+                try:
+                    init_and_seed_mysql(conn)
+                    mysql_init_checked = True
+                except Exception as ex:
+                    print(f"MySQL initialization error: {ex}")
+            return conn
         except Exception as e:
             print(f"MySQL connection failed to remote host {db_host}: {e}. Falling back to SQLite...")
 
     if db_host == "localhost":
         try:
-            return mysql.connector.connect(
+            conn = mysql.connector.connect(
                 host="localhost",
-                port=int(os.getenv("DB_PORT", 3306)),
-                user=os.getenv("DB_USER", "root"),
-                password=os.getenv("DB_PASSWORD", "8808"),
-                database=os.getenv("DB_DATABASE", "cinetrace")
+                port=db_port,
+                user=db_user,
+                password=db_pass,
+                database=db_name
             )
+            if not mysql_init_checked:
+                try:
+                    init_and_seed_mysql(conn)
+                    mysql_init_checked = True
+                except Exception as ex:
+                    print(f"MySQL initialization error: {ex}")
+            return conn
         except Exception as e:
             print(f"MySQL connection failed to localhost: {e}. Falling back to SQLite...")
 
