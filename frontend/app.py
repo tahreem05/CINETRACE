@@ -18,15 +18,197 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'cinetrace_super_secret_key_123')
 
 # ── Database Connection ───────────────────────────────────────────────────────
+import sqlite3
+import csv
+
+class SQLiteCursorWrapper:
+    def __init__(self, sqlite_cursor, dictionary=False):
+        self.cursor = sqlite_cursor
+        self.dictionary = dictionary
+
+    def execute(self, query, params=None):
+        # Translate MySQL %s placeholders to SQLite ? placeholders
+        query = query.replace("%s", "?")
+        if params is None:
+            self.cursor.execute(query)
+        else:
+            self.cursor.execute(query, params)
+
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        if self.dictionary:
+            return dict(row)
+        return row
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        if self.dictionary:
+            return [dict(r) for r in rows]
+        return rows
+
+    def close(self):
+        self.cursor.close()
+
+class SQLiteConnectionWrapper:
+    def __init__(self, db_path):
+        self.conn = sqlite3.connect(db_path)
+        self.conn.row_factory = sqlite3.Row
+
+    def cursor(self, dictionary=False):
+        return SQLiteCursorWrapper(self.conn.cursor(), dictionary=dictionary)
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
+
+def init_and_seed_sqlite(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Users'")
+        table_exists = cursor.fetchone()
+    except Exception:
+        table_exists = False
+    cursor.close()
+    conn.close()
+
+    if table_exists:
+        return  # Already initialized
+
+    print("Initializing self-healing SQLite database...")
+    
+    # Locate CineTrace.sql schema
+    schema_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "CineTrace.sql"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "CineTrace.sql"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "CineTrace.sql")
+    ]
+    schema_path = None
+    for p in schema_paths:
+        if os.path.exists(p):
+            schema_path = p
+            break
+
+    if schema_path:
+        try:
+            with open(schema_path, "r", encoding="utf-8") as sf:
+                sql_script = sf.read()
+            
+            # Remove database creation and selection statements for SQLite compatibility
+            cleaned_lines = []
+            for line in sql_script.splitlines():
+                line_upper = line.strip().upper()
+                if (line_upper.startswith("CREATE DATABASE") or 
+                    line_upper.startswith("USE ") or 
+                    line_upper.startswith("SELECT ") or 
+                    line_upper.startswith("SET ")):
+                    continue
+                cleaned_lines.append(line)
+            cleaned_script = "\n".join(cleaned_lines)
+
+            conn = sqlite3.connect(db_path)
+            conn.executescript(cleaned_script)
+            conn.commit()
+            conn.close()
+            print("SQLite tables created successfully.")
+        except Exception as e:
+            print(f"Error creating SQLite tables: {e}")
+
+    # Seed data from CSV files
+    csv_dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "cinetrace_csvs"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cinetrace_csvs"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "cinetrace_csvs")
+    ]
+    csv_dir = None
+    for d in csv_dirs:
+        if os.path.exists(d):
+            csv_dir = d
+            break
+
+    if csv_dir:
+        TABLE_ORDER = [
+            "Directors", "Cinematographers", "Genres", "Cinematic_Movements",
+            "Crew_Members", "Users", "Films", "Film_Genres", "Film_Movements",
+            "Film_Crew", "Influence_Links", "Awards", "Reviews", "Watchlists",
+            "Watchlist_Items", "Influence_Votes"
+        ]
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        for table in TABLE_ORDER:
+            csv_file = os.path.join(csv_dir, f"{table.lower()}.csv")
+            if not os.path.exists(csv_file):
+                csv_file = os.path.join(csv_dir, f"{table}.csv")
+            if not os.path.exists(csv_file):
+                continue
+                
+            try:
+                with open(csv_file, newline="", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    columns = reader.fieldnames
+                    if not columns:
+                        continue
+                        
+                    rows = []
+                    for row in reader:
+                        rows.append(tuple(None if v == "" else v for v in row.values()))
+                        
+                    if not rows:
+                        continue
+                        
+                    placeholders = ", ".join(["?"] * len(columns))
+                    col_names = ", ".join(columns)
+                    sql = f"INSERT OR REPLACE INTO `{table}` ({col_names}) VALUES ({placeholders})"
+                    cursor.executemany(sql, rows)
+                print(f"Seeded SQLite table {table} with {len(rows)} rows.")
+            except Exception as e:
+                print(f"Error seeding SQLite table {table}: {e}")
+                
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Self-healing SQLite database initialized and seeded successfully!")
+
+SQLITE_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cinetrace.db")
 
 def get_db_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", 3306)),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", "8808"),
-        database=os.getenv("DB_DATABASE", "cinetrace")
-    )
+    db_host = os.getenv("DB_HOST")
+    if db_host and db_host != "localhost":
+        try:
+            return mysql.connector.connect(
+                host=db_host,
+                port=int(os.getenv("DB_PORT", 3306)),
+                user=os.getenv("DB_USER", "root"),
+                password=os.getenv("DB_PASSWORD", "8808"),
+                database=os.getenv("DB_DATABASE", "cinetrace")
+            )
+        except Exception as e:
+            print(f"MySQL connection failed to remote host {db_host}: {e}. Falling back to SQLite...")
+
+    if db_host == "localhost":
+        try:
+            return mysql.connector.connect(
+                host="localhost",
+                port=int(os.getenv("DB_PORT", 3306)),
+                user=os.getenv("DB_USER", "root"),
+                password=os.getenv("DB_PASSWORD", "8808"),
+                database=os.getenv("DB_DATABASE", "cinetrace")
+            )
+        except Exception as e:
+            print(f"MySQL connection failed to localhost: {e}. Falling back to SQLite...")
+
+    # Fallback to zero-config SQLite
+    init_and_seed_sqlite(SQLITE_DB_PATH)
+    return SQLiteConnectionWrapper(SQLITE_DB_PATH)
 
 # ── Auth & Context ────────────────────────────────────────────────────────────
 
