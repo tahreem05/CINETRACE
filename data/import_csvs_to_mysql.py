@@ -16,13 +16,14 @@ import sys
 from pathlib import Path
 
 # ─── CONFIGURE THESE ──────────────────────────────────────────────────────────
-CSV_DIR  = r"D:\CodeWork\CineTrace\CineTrace\data\cinetrace_csvs"
+CSV_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cinetrace_csvs")
 
-HOST     = "localhost"
-PORT     = 3306
-USER     = "root"
-PASSWORD = "8808"        # ← your MySQL root password here
-DATABASE = "cinetrace"
+HOST     = os.getenv("DB_HOST", "localhost")
+db_port_raw = os.getenv("DB_PORT", "3306")
+PORT     = int(db_port_raw) if db_port_raw.isdigit() else 3306
+USER     = os.getenv("DB_USER", "root")
+PASSWORD = os.getenv("DB_PASSWORD", "8808")        # ← default fallback MySQL password
+DATABASE = os.getenv("DB_DATABASE", "cinetrace")
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Table import order respects foreign key dependencies (parents before children)
